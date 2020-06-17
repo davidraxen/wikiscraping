@@ -9,7 +9,8 @@ import re
 import logging
 import pandas as pd
 import wikipedia
-from datetime import datetime
+import datetime
+from dateutil.relativedelta import relativedelta
 import numpy as np
 logging.basicConfig(filename='myProgramLog.txt', level=logging.DEBUG, format=' %(asctime)s - %(levelname)s - %(message)s')
 logging.debug('Start of program')
@@ -171,12 +172,14 @@ def ExtractDate(df):
     df["Date"] = np.nan
     for i in df.index:
         c = df.iloc[:,0][i].split()
-        d = str(df.iloc[:,1][i]).split()
+       # d = str(df.iloc[:,1][i]).split()
+       # if not d[0].isdigit():
+        #    d = "00:00"
         if "v" in df.iloc[:,4][i]:
         #if c[0] == "TBC" or "v" in df.iloc[:,4][i]:
             df["Date"][i] = np.nan
         else:
-            df["Date"][i] =" ".join(c[:3]) + " " + d[0]
+            df["Date"][i] =" ".join(c[:3]) + " " #+ d[0]
     try:
         df["Date"] = pd.to_datetime(df['Date'])
     except: pd.errors.ParserError
@@ -341,7 +344,11 @@ def CreateEventDf(df):
 
 def GetBirthday(x):
     if x == "Frank Lampard":
-        x = "Frank Lampard chelsea football" #For some reason works when Frank Lampard Jr doesn't    
+        x = "Frank Lampard chelsea football" #For some reason works when Frank Lampard Jr doesn't
+    if x == "Ryan Bertrand":
+        x = "Ryan Bertrand chelsea football"
+    if x == "Josh McEachran":
+        x = "Josh McEachran chelsea football"        
     re_bday = '''(?<=\<span class\=\"bday\"\>)(.*?)(?=\<\/span\>)'''
     try:
         search = wikipedia.search(x + " football" + " chelsea")
@@ -358,3 +365,18 @@ def GetBirthday(x):
         except:
             return np.nan
     return bday
+
+
+def getSubs(x):
+    x = str(x).replace("—", "0").replace(" ", "").replace(")", "").replace("(", "+").replace(".0", "")
+    if "+" not in x:
+        x = x + "+0"
+    return int(x.split("+")[1])
+
+def getStarts(x):
+    x = str(x).replace("—", "0").replace(" ", "").replace(")", "").replace("(", "+").replace(".0", "")
+    if "+" not in x:
+        x = x + "+0"
+        if x == "+0":
+            return np.nan
+    return int(x.split("+")[0])

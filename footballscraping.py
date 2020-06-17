@@ -9,6 +9,7 @@ import logging
 import pandas as pd
 import numpy as np
 import datetime
+from dateutil.relativedelta import relativedelta
 logging.basicConfig(filename='myProgramLog.txt', level=logging.DEBUG, format=' %(asctime)s - %(levelname)s - %(message)s')
 logging.debug('Start of program')
 import requests, sys, bs4
@@ -19,8 +20,7 @@ print("Loading data...") # display some text to make it clear stuff is happening
 #Create df mostly including the date intervals for each manager.
 res = requests.get("https://en.wikipedia.org/wiki/List_of_Chelsea_F.C._managers")
 res.raise_for_status()
-res, images = drx.replaceImageWithTitle(res.text)
-managers = pd.read_html(res)
+managers = pd.read_html(res.text)
 managers = managers[0]#
 managers = managers.iloc[: , list(range(1,11))]
 managers["Name"] = managers["Name"].apply(lambda x: x.split("[")[0])
@@ -53,8 +53,8 @@ while j < 21:
 #--- Extract info for which european cup Chelsea played each season.    
 res = requests.get("https://en.wikipedia.org/wiki/Chelsea_F.C._in_international_football_competitions")
 res.raise_for_status()
-res, images = drx.replaceImageWithTitle(res.text)
-eu_cups = pd.read_html(res)
+#res, images = drx.replaceImageWithTitle(res.text)
+eu_cups = pd.read_html(res.text)
 eu_cups = eu_cups[2]
 eu_cups["Season"] = eu_cups["Season"].apply(lambda x: x.replace("–", "-"))
 
@@ -162,7 +162,7 @@ for l in lst:
                         p["UEFACupApps"] = df[col].astype(str)
                     if "UEFA Cup" in col and "Goal" in col:
                         p["UEFACupGoals"] = df[col].astype(str)
-                     # - Europa League
+                      # - Europa League
                     if "Europa" in col and "Apps" in col:
                         p["EuropaLeagueApps"] = df[col].astype(str)
                     if "Europa" in col and "Goal" in col:
@@ -200,7 +200,7 @@ for df in lst3:
     p["LeagueCupApps"] = df["League Cup_x"]
     p["LeagueCupGoals"] = df["League Cup_y"]
     if "Champions League_x" in df.columns:
-        p["ChampionsLeagueApp"] = df["Champions League_x"]
+        p["ChampionsLeagueApps"] = df["Champions League_x"]
         p["ChampionsLeagueGoals"] = df["Champions League_y"]
     if "Europa League_x" in df.columns:
         p["EuropaLeagueApps"] = df["Europa League_x"]
@@ -237,7 +237,47 @@ for p in players.Name.unique():
     t_dict[p] = drx.GetBirthday(p)
     
 players["Born"] = players["Name"].apply(lambda x: t_dict[x])
- 
+
+
+players["PremierLeagueSubs"] = players["PremierLeagueApps"].apply(lambda x: drx.getSubs(x))
+players["PremierLeagueApps"] = players["PremierLeagueApps"].apply(lambda x: drx.getStarts(x))     
+
+players["FaCupApps"] = players["FaCupApps"].apply(lambda x: drx.getStarts(x) + drx.getSubs(x))
+players["FaCupGoals"] = players["FaCupGoals"].apply(lambda x: x if  pd.isnull(x) else int(str(x).replace("–", "0").replace("—", "0").replace(".0", "")))
+players["LeagueCupApps"] = players["LeagueCupApps"].apply(lambda x: drx.getStarts(x) + drx.getSubs(x))
+players["LeagueCupGoals"] = players["LeagueCupGoals"].apply(lambda x: x if  pd.isnull(x) else int(str(x).replace("–", "0").replace("—", "0").replace(".0", "")))
+players["UEFACupApps"] = players["UEFACupApps"].apply(lambda x: x if  pd.isnull(x) else drx.getStarts(x) + drx.getSubs(x))
+players["UEFACupGoals"] = players["UEFACupGoals"].apply(lambda x: x if  pd.isnull(x) else int(str(x).replace("–", "0").replace("—", "0").replace(".0", "")))
+players["ChampionsLeagueApps"] = players["ChampionsLeagueApps"].apply(lambda x: x if  pd.isnull(x) else drx.getStarts(x) + drx.getSubs(x))
+players["ChampionsLeagueGoals"] = players["ChampionsLeagueGoals"].apply(lambda x: x if  pd.isnull(x) else int(str(x).replace("–", "0").replace("—", "0").replace(".0", "")))
+players["EuropaLeagueApps"] = players["EuropaLeagueApps"].apply(lambda x: x if  pd.isnull(x) else drx.getStarts(x) + drx.getSubs(x))
+players["EuropaLeagueGoals"] = players["EuropaLeagueGoals"].apply(lambda x: x if  pd.isnull(x) else int(str(x).replace("–", "0").replace("—", "0").replace(".0", "")))
+
+
+players["Number"] = players["Number"].apply(lambda x: int(str(x).replace("–", "15").replace(".0", "")))
+players["Born"] = pd.to_datetime(players['Born'], errors='coerce')
+players["AgeAugust"] = players["Season"].apply(lambda x: x[0:4]+"-8"+"-01")
+players["AgeAugust"] = pd.to_datetime(players['AgeAugust'], errors='coerce')
+
+players["Age"] = np.nan
+players["ExtraM"] = np.nan
+players["ExtraD"] = np.nan
+
+for i in players.index:
+    try:
+        players["Age"][i] = relativedelta(players["AgeAugust"][i], players["Born"][i]).years
+        players["ExtraM"][i] = relativedelta(players["AgeAugust"][i], players["Born"][i]).months        
+        players["ExtraD"][i] = relativedelta(players["AgeAugust"][i], players["Born"][i]).days        
+    except:
+        players["Age"][i] = np.nan
+
+# for i in players.index:
+#     try:
+#         players["AugustExtra"][i] = int(str((players["AgeAugust"][i] - players["Born"][i]) % 365.2425).split()[0])
+#         players["AgeAugust"][i] = int(str((players["AgeAugust"][i] - players["Born"][i]) / 365.2425).split()[0])
+#     except:
+#         players["AgeAugust"][i] = np.nan
+    
 print("DataFrame with all players and no. games and goals per season. Done")
 
 # ------- DONE AND DONE. COMMENT OUT AND COME BACK TO LATER.
@@ -245,6 +285,10 @@ print("DataFrame with all players and no. games and goals per season. Done")
 df = g2.copy()
 #-- Clean the DataFrame for the games.
 drx.ExtractDate(df)
+
+# for i in df.index:
+    
+#     df["Date"][i] = datetime.datetime.strptime(df["Date"][i], '%d %B %Y')
 
 
 df["HomeEvents"] = df.iloc[:,3].apply(lambda x: np.nan if pd.isnull(x) else
@@ -276,6 +320,7 @@ df["HomeGoals"] = df.iloc[:,4].apply(lambda x: x.split("–")[0]if "–" in x el
                                       x.split("-")[0] if "-" in x else x)
 df["AwayGoals"] = df.iloc[:,4].apply(lambda x: x.split("–")[1]if "–" in x else 
                                       x.split("-")[1] if "-" in x else x)
+df["WDL"] = np.nan
 for i in df.index:
     if len(df["HomeGoals"][i]) > 1 and len(df["AwayGoals"][i]) > 1:
         df["HomeGoals"][i], df["AwayGoals"][i] = int(df["HomeGoals"][i][0]), int(df["HomeGoals"][i][1])
@@ -283,6 +328,22 @@ for i in df.index:
         df["HomeGoals"][i], df["AwayGoals"][i] = np.nan, np.nan
     else:
         df["HomeGoals"][i], df["AwayGoals"][i] = int(df["HomeGoals"][i]), int(df["AwayGoals"][i])
+    if df["HomeTeam"][i] == "Chelsea":
+        if df["HomeGoals"][i] > df["AwayGoals"][i]:
+            df["WDL"][i] = "W"
+        elif df["HomeGoals"][i] == df["AwayGoals"][i]:
+            df["WDL"][i] = "D"
+        else:
+            df["WDL"][i] = "L"
+    if df["AwayTeam"][i] == "Chelsea":
+        if df["HomeGoals"][i] < df["AwayGoals"][i]:
+            df["WDL"][i] = "W"
+        elif df["HomeGoals"][i] == df["AwayGoals"][i]:
+            df["WDL"][i] = "D"
+        else:
+            df["WDL"][i] = "L"
+
+
 #--------------------------------------------
 
 
@@ -297,20 +358,72 @@ a = df.groupby("Season")["Competition"].value_counts()
 df = df[['Season', 'Date', 'StadiumCity', 'Stadium', 'Attendance',
         'Referee', 'RefereeNation', 'HomeTeamNation', 'HomeTeam',
         'AwayTeamNation', 'AwayTeam', 'Competition', 'Manager', 'HomeGoals',
-        'AwayGoals']]
+        'AwayGoals', "WDL"]]
 
 #Deleting lingering variables.
 del a, col, eu_comp, eu_cups, g2, i, images, images2, j, l, lst, lst2, lst3, p, res, row, rows, s, season, seasons, t, tables, u
 
 #Saving -.csv's and excels of the data.
+# df.to_csv (r'Chelsea_games.csv', index = False, header=True)
+# events.to_csv (r'Chelsea_events.csv', index = False, header=True)
+# players.to_csv (r'Chelsea_players.csv', index = False, header=True)
+
+# df = pd.read_csv("Chelsea_games.csv")
+# events = pd.read_csv("Chelsea_events.csv")
+# players = pd.read_csv("Chelsea_players.csv")
+
+#players2 = players.drop_duplicates(subset=['Name'], keep='first')
+#players2 = dict(zip(players2.Name, players2.Born))
+
+events["Born"] = np.nan
+
+
+events["Age"] = np.nan
+events["ExtraM"] = np.nan
+events["ExtraD"] = np.nan
+
+for i in events.index:
+    if events["Player"][i] == "A. Cole" or events["Player"][i] == "A.Cole":
+        events["Player"][i] = "Ashley Cole"    
+    if events["Player"][i] == "C. Cole" or events["Player"][i] == "C.Cole":
+        events["Player"][i] = "Carlton Cole"
+    if events["Player"][i] == "J. Cole" or events["Player"][i] == "J.Cole":
+        events["Player"][i] = "Joe Cole"
+    if events["Player"][i] == "Ba":
+        events["Player"][i] = "Demba Ba"
+    if events["Player"][i] == "Bertrand":
+        events["Player"][i] = "Ryan Bertrand"
+    if events["Player"][i] == "McEachran":
+        if int(str(events["Date"][i]).split()[0][0:4]) < 2016:
+            events["Player"][i] = "Josh McEachran"
+        else:
+            events["Player"][i] = "George McEachran"
+    if (events["HomeTeam"][i] == "Chelsea" and events["Home/Away"][i] == "H") or (events["AwayTeam"][i] == "Chelsea" and events["Home/Away"][i] == "A"):        
+        if events["Player"][i] != "Alex": # and events["Player"][i] != "Ba" and events["Player"][i] != "Bertrand" and events["Player"][i] != "Mc":
+            for p in t_dict.keys():
+                if events["Player"][i] in p:
+                    events["Born"][i] = t_dict[p]
+        else:
+            #if events["Player"][i] == "Alex":
+            events["Born"][i] = t_dict["Alex"]
+            #else:
+                #events["Born"][i] = t_dict["Demba Ba"]
+
+events["Born"] =  pd.to_datetime(events["Born"], errors='coerce')
+events["Date"] =  pd.to_datetime(events["Date"])
+
+for i in events.index:
+    try:
+        events["Age"][i] = relativedelta(events["Date"][i], events["Born"][i]).years
+        events["ExtraM"][i] = relativedelta(events["Date"][i], events["Born"][i]).months        
+        events["ExtraD"][i] = relativedelta(events["Date"][i], events["Born"][i]).days        
+    except:
+        events["Age"][i] = np.nan
+
+#Saving -.csv's and excels of the data.
 df.to_csv (r'Chelsea_games.csv', index = False, header=True)
 events.to_csv (r'Chelsea_events.csv', index = False, header=True)
 players.to_csv (r'Chelsea_players.csv', index = False, header=True)
-
-
-with pd.ExcelWriter('ChelseaData.xlsx') as writer:  
-    df.to_excel(writer, sheet_name='games')
-    events.to_excel(writer, sheet_name='events')
-    players.to_excel(writer, sheet_name='players')
-
+            
+    
 print("Done! This took %s seconds" % (time.time() - start_time))
