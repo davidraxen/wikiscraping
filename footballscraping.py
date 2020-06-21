@@ -75,7 +75,7 @@ players = pd.DataFrame() # - Not in use yet.
 # Regex to remove Notes from tables.
 Note = """\<tr\sstyle\=\"font\-size\:85\%\"\>\<td\scolspan\=\"5\"\>\<i\>Note.*\<\/td\>\s\<\/tr\>"""
 Positions = '''\<tr\>\s\<th\scolspan=\"16\"\sstyle\=\"background\:\#dcdcdc\;\"\>.*\s\<\/th\>\<\/tr\>'''
-
+Penalties1 = '''\<tr\>\<td\srowspan\=\"2\">\<\/td\>\<td\scolspan\=\"3\".*\s'''
 
 for i in seasons:
     season = "https://en.wikipedia.org/wiki/" + i + "_Chelsea_F.C._season"
@@ -87,6 +87,7 @@ for i in seasons:
         res = res.replace("wikitable sortable", "wikitable") #Needed to grab a table from 2013-14
         res = re.sub(Note, "", res) # Removes notes from tables to ensure that all games gets captured
         res = re.sub(Positions, "", res) # Cleans up a table with a little too much unformation.
+        res = re.sub(Penalties1, "", res)
         images += images2   # Add all new images for each season to the images list.
         images = list(set(images)) # Remove duplicates from list.
         tables = pd.read_html(res) # Store _All_ dataframes from wiki-page.
